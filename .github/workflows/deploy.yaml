@@ -31,7 +31,7 @@ jobs:
             IMAGE_TAG=${{ github.sha }} \
             docker compose pull
 
-            IMAGE_NAME=ghcr.io/${{ github.repository }} \
+            IMAGE_NAME=ghcr.io/kirilldrs/catty-reminders-app \
             IMAGE_TAG=${{ github.sha }} \
             docker compose up -d --force-recreate --remove-orphans
 
