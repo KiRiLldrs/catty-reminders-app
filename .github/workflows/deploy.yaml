@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
+      - name: Deploy exact release commit with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -20,46 +20,39 @@ jobs:
           script: |
             set -e
 
-            APP_DIR=/home/kirill/desktop/devops
-            DEPLOY_REF=${{ github.sha }}
+            # Твои пути
+            cd /home/kirill/desktop/devops
             
-            cd $APP_DIR
-
-            echo "DEPLOY_REF=$DEPLOY_REF" > .env
-            echo ">>> Created .env with DEPLOY_REF=$DEPLOY_REF"
+            # Получаем точный коммит релиза
+            git fetch --all --tags
+            git checkout --detach ${{ github.sha }}
 
             # Авторизация в реестре
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u kirilldrs --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            echo ">>> Waiting for image to appear in registry..."
-            for i in $(seq 1 12); do
-              if docker manifest inspect "ghcr.io/kirilldrs/catty-reminders-app:$DEPLOY_REF" &>/dev/null; then
-                echo "✓ Image found!"
-                break
-              fi
-              echo "⏳ Waiting... ($i/12)"
-              sleep 10
-            done
-
+            # Pull и up с передачей переменных в docker compose
+            # (как у товарища, но с твоими значениями)
+            IMAGE_NAME=ghcr.io/kirilldrs/catty-reminders-app \
+            IMAGE_TAG=${{ github.sha }} \
             docker compose pull
+
+            IMAGE_NAME=ghcr.io/kirilldrs/catty-reminders-app \
+            IMAGE_TAG=${{ github.sha }} \
             docker compose up -d --force-recreate --remove-orphans
 
-            echo "Waiting for app to be ready..."
+            # Проверка доступности (твой стиль)
+            echo "Waiting for app..."
             for i in $(seq 1 30); do
               if curl -fsS http://127.0.0.1:8181 >/dev/null; then
                 echo "✓ App is reachable"
                 exit 0
               fi
-              echo "⏳ Attempt $i/30..."
               sleep 5
             done
 
+            # Отладка при ошибке
             echo "✗ App failed to start"
-            echo "=== Docker Compose PS ==="
             docker compose ps
-            echo "=== App Logs ==="
-            docker compose logs --tail=50 app
-            echo "=== DB Logs ==="
-            docker compose logs --tail=20 db
-
+            docker compose logs app
+            docker compose logs db
             exit 1
