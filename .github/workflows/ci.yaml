@@ -10,6 +10,22 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    
+    services:
+      db:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root_password
+          MARIADB_DATABASE: catty_db
+          MARIADB_USER: catty
+          MARIADB_PASSWORD: catty_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
       - name: Checkout repository
@@ -30,6 +46,7 @@ jobs:
       - name: Run tests
         env:
           PYTHONPATH: ${{ github.workspace }}
+          DATABASE_URL: mysql+pymysql://catty:catty_password@127.0.0.1:3306/catty_db
         run: |
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8181 &
           sleep 5
@@ -58,3 +75,5 @@ jobs:
             -t $IMAGE .
 
           docker push $IMAGE
+          
+          echo ">>> Image pushed: $IMAGE"
