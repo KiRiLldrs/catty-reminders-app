@@ -21,33 +21,45 @@ jobs:
             set -e
 
             APP_DIR=/home/kirill/desktop/devops
-            IMAGE_NAME=ghcr.io/kirilldrs/catty-reminders-app
-            IMAGE_TAG=${{ github.sha }}
-
+            DEPLOY_REF=${{ github.sha }}
+            
             cd $APP_DIR
 
-            git fetch --all --tags
-            git checkout --detach $IMAGE_TAG
+            echo "DEPLOY_REF=$DEPLOY_REF" > .env
+            echo ">>> Created .env with DEPLOY_REF=$DEPLOY_REF"
 
+            # Авторизация в реестре
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u kirilldrs --password-stdin
 
-            IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG docker compose pull
-            IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG docker compose up -d --force-recreate --remove-orphans
+            echo ">>> Waiting for image to appear in registry..."
+            for i in $(seq 1 12); do
+              if docker manifest inspect "ghcr.io/kirilldrs/catty-reminders-app:$DEPLOY_REF" &>/dev/null; then
+                echo "✓ Image found!"
+                break
+              fi
+              echo "⏳ Waiting... ($i/12)"
+              sleep 10
+            done
 
-            echo "Waiting for app..."
+            docker compose pull
+            docker compose up -d --force-recreate --remove-orphans
 
+            echo "Waiting for app to be ready..."
             for i in $(seq 1 30); do
               if curl -fsS http://127.0.0.1:8181 >/dev/null; then
                 echo "✓ App is reachable"
                 exit 0
               fi
+              echo "⏳ Attempt $i/30..."
               sleep 5
             done
 
             echo "✗ App failed to start"
-
+            echo "=== Docker Compose PS ==="
             docker compose ps
-            docker compose logs app
-            docker compose logs db
+            echo "=== App Logs ==="
+            docker compose logs --tail=50 app
+            echo "=== DB Logs ==="
+            docker compose logs --tail=20 db
 
             exit 1
