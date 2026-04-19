@@ -2,7 +2,7 @@ name: catty-reminders-app
 
 services:
   app:
-    image: ghcr.io/kirilldrs/catty-reminders-app:${DEPLOY_REF:-latest}
+    image: ${IMAGE_NAME:-ghcr.io/kirilldrs/catty-reminders-app}:${IMAGE_TAG:-latest}
     container_name: catty-reminders-app
     restart: unless-stopped
     ports:
