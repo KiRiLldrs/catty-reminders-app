@@ -20,18 +20,29 @@ jobs:
             set -e
 
             cd /home/kirill/desktop/devops
+
             git fetch --all --tags
             git checkout --detach ${{ github.sha }}
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            IMAGE_NAME=ghcr.io/kirilldrs/catty-reminders-app \
+            IMAGE_NAME=ghcr.io/${{ github.repository }} \
             IMAGE_TAG=${{ github.sha }} \
-            docker compose pull
+            docker compose pull || {
+              echo "⚠️ Image with SHA tag not found, trying branch tag..."
+              IMAGE_NAME=ghcr.io/${{ github.repository }} \
+              IMAGE_TAG=${{ github.ref_name }} \
+              docker compose pull
+            }
 
-            IMAGE_NAME=ghcr.io/kirilldrs/catty-reminders-app \
+            IMAGE_NAME=ghcr.io/${{ github.repository }} \
             IMAGE_TAG=${{ github.sha }} \
-            docker compose up -d --force-recreate --remove-orphans
+            docker compose up -d --force-recreate --remove-orphans || {
+              echo "⚠️ Fallback to branch tag for deployment..."
+              IMAGE_NAME=ghcr.io/${{ github.repository }} \
+              IMAGE_TAG=${{ github.ref_name }} \
+              docker compose up -d --force-recreate --remove-orphans
+            }
 
             for i in $(seq 1 30); do
               if curl -fsS http://127.0.0.1:8181/login >/dev/null 2>&1; then
