@@ -26,7 +26,7 @@ services:
       - MYSQL_USER=catty
       - MYSQL_PASSWORD=catty_password
     volumes:
-      - db-/var/lib/mysql
+      - db-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       start_period: 10s
