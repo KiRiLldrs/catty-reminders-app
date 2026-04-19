@@ -1,0 +1,45 @@
+name: catty-reminders-app
+
+services:
+  app:
+    image: ghcr.io/kirilldrs/catty-reminders-app:${DEPLOY_REF:-latest}
+    container_name: catty-reminders-app
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    environment:
+      - DEPLOY_REF=${DEPLOY_REF:-unknown}
+      - DATABASE_URL=mysql+pymysql://catty:catty_password@db:3306/catty_db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  db:
+    image: mariadb:10.11
+    container_name: catty-mariadb
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=catty_db
+      - MYSQL_USER=catty
+      - MYSQL_PASSWORD=catty_password
+    volumes:
+      - db-/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local

@@ -7,27 +7,21 @@ IMAGE_FULL="${IMAGE_NAME}:${DEPLOY_REF}"
 
 APP_DIR="/home/kirill/desktop/devops"
 ENV_FILE="$APP_DIR/.env.deploy"
-CONTAINER_NAME="catty-reminders-app"
-PORT=8181
 
-echo "Deploying: $IMAGE_FULL"
+echo "Deploying with Docker Compose: $IMAGE_FULL"
 echo "DEPLOY_REF: $DEPLOY_REF"
-
-echo "Cleaning..."
-docker stop "$CONTAINER_NAME" 2>/dev/null || true
-docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
-
-echo "Pulling..."
-docker pull "$IMAGE_FULL"
 
 printf 'DEPLOY_REF=%s\n' "$DEPLOY_REF" > "$ENV_FILE"
 echo "Saved DEPLOY_REF=$DEPLOY_REF to $ENV_FILE"
 
-echo "Starting container..."
-docker run -d \
-    -p "$PORT":"$PORT" \
-    --name "$CONTAINER_NAME" \
-    --restart unless-stopped \
-    "$IMAGE_FULL"
+echo "${GHCR_PAT}" | docker login ghcr.io -u kirilldrs --password-stdin 2>/dev/null || true
+
+cd "$APP_DIR"
+
+docker compose pull
+docker compose up -d --remove-orphans
+
+sleep 5
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8181 | grep -q "200\|302" && echo "App is reachable" || echo "Error!"
 
 echo "Deploy complete!"

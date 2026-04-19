@@ -8,21 +8,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GHCR_PAT
           script: |
             set -e
             cd /home/kirill/desktop/devops
             chmod +x ./deploy.sh
-
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u kirilldrs --password-stdin
-
-            ./deploy.sh "ghcr.io/kirilldrs/catty-reminders-app" "${{ github.sha }}"
             
-            sleep 3
-            curl -s -o /dev/null -w "%{http_code}" http://localhost:8181 | grep -q "200\|302" && echo "App is reachable" || echo "Error!"
+            # Передаём секрет в скрипт
+            export GHCR_PAT="${{ secrets.GHCR_PAT }}"
+            
+            ./deploy.sh "ghcr.io/kirilldrs/catty-reminders-app" "${{ github.sha }}"
