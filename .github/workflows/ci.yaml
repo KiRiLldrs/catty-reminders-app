@@ -10,22 +10,6 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    
-    services:
-      db:
-        image: mariadb:10.11
-        env:
-          MARIADB_ROOT_PASSWORD: root_password
-          MARIADB_DATABASE: catty_db
-          MARIADB_USER: catty
-          MARIADB_PASSWORD: catty_password
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
 
     steps:
       - name: Checkout repository
@@ -59,21 +43,30 @@ jobs:
           name: test_result
           path: test_result.xml
 
-      - name: Login to GHCR
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: kirilldrs
-          password: ${{ secrets.GHCR_PAT }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/kirilldrs/catty-reminders-app
+          tags: |
+            type=sha
+            type=ref,event=branch
 
       - name: Build and push Docker image
-        run: |
-          IMAGE=ghcr.io/kirilldrs/catty-reminders-app:${{ github.sha }}
-
-          docker build \
-            --build-arg DEPLOY_REF=${{ github.sha }} \
-            -t $IMAGE .
-
-          docker push $IMAGE
-          
-          echo ">>> Image pushed: $IMAGE"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            DEPLOY_REF=${{ github.sha }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ghcr.io/kirilldrs/catty-reminders-app:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
