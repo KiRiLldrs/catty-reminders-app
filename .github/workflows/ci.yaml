@@ -44,26 +44,15 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: kirilldrs
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=sha
-            type=ref,event=branch
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          build-args: |
-            DEPLOY_REF=${{ github.sha }}
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-          labels: ${{ steps.meta.outputs.labels }}
+        run: |
+          IMAGE=ghcr.io/kirilldrs/catty-reminders-app:${{ github.sha }}
+
+          docker build \
+            --build-arg DEPLOY_REF=${{ github.sha }} \
+            -t $IMAGE .
+
+          docker push $IMAGE
