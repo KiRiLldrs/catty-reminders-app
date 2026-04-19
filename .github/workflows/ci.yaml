@@ -28,12 +28,14 @@ jobs:
           playwright install --with-deps chromium
 
       - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8181 &
           sleep 5
           pytest -v --tb=short --junitxml=test_result.xml
 
-      - name: Upload test result
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
