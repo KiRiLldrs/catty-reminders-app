@@ -6,12 +6,12 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: root_password
-      MARIADB_ROOT_HOST: '%'
+      MARIADB_ROOT_HOST: "%"
       MARIADB_DATABASE: catty_db
       MARIADB_USER: catty
       MARIADB_PASSWORD: catty_password
     volumes:
-      - catty-db-/var/lib/mysql
+      - catty-db:/var/lib/mysql
 
   app:
     image: ${IMAGE_NAME:-ghcr.io/kirilldrs/catty-reminders-app}:${IMAGE_TAG:-latest}
@@ -21,8 +21,8 @@ services:
     ports:
       - "8181:8181"
     environment:
-      - DEPLOY_REF=${IMAGE_TAG:-unknown}
-      - DATABASE_URL=mysql+pymysql://catty:catty_password@db:3306/catty_db
+      DEPLOY_REF: ${IMAGE_TAG:-unknown}
+      DATABASE_URL: mysql+pymysql://catty:catty_password@db:3306/catty_db
 
 volumes:
-  catty-db-
+  catty-db:
